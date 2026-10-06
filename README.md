@@ -1,1 +1,0 @@
-# siber_guvenlik_lab
