@@ -1,0 +1,32 @@
+Sorular :
+1.soru :
+sslscan çıktısına göre güçlü sunucu yalnızca TLS 1.3 kabul etti (SSLv2, SSLv3, TLS 1.0, 1.1 ve 1.2 kapalı). Tercih ettiği şifre takımı TLS_AES_256_GCM_SHA384 (256 bit). Kabul edilen diğer takımlar TLS_CHACHA20_POLY1305_SHA256 ve TLS_AES_128_GCM_SHA256. Bu değerler gorev2_istemci.py çıktısıyla (istemcinin pazarlık ettiği sürüm ve şifre takımı) uyuşuyor.
+2.soru:
+Güçlü sunucu (8443) yalnızca TLS 1.3 kabul etti. TLS 1.2, 1.1 ve 1.0 disabled görünüyordu, tek bir sürüm ve yalnızca 3 şifre takımı vardı. Zayıf sunucuda (8445) ise TLS 1.0, TLS 1.1, TLS 1.2 ve TLS 1.3'ün hepsi enabled. SSLv2 ve SSLv3 her iki sunucuda da kapalıydı.
+Sistem yöneticisi olsam hangi sürümleri kapatırdım ve neden:
+
+SSLv2 ve SSLv3: Kapatırdım. SSLv3, POODLE saldırısına açıktır. İkisi de çok eskidir.
+TLS 1.0 ve TLS 1.1: Kapatırdım. CBC modu ve eski hash’lere dayanıyorlar, BEAST gibi saldırılara açıklar, modern AEAD şifrelerini desteklemiyorlar ve RFC 8996 ile resmen kullanımdan kaldırıldılar. Tarayıcılar da artık desteklemiyor.
+Anonim (AECDH) ve zayıf takımlar: Kapatırdım. Anonim anahtar değişimi sunucuyu doğrulamadığı için ortadaki adam saldırısına izin verir. 64 bit takımlar da zayıftır.
+TLS 1.2: Güçlü takımlarla (ECDHE + AES-GCM veya ChaCha20) sınırlandırarak açık bırakırdım, çünkü bazı eski istemciler TLS 1.3 desteklemez. Tüm istemciler TLS 1.3 destekliyorsa yalnızca TLS 1.3 bırakmak en güvenlisidir (güçlü sunucunun yaptığı gibi).
+3.soru:
+Başta mitmproxy araya girip kendi kök CA’sının imzaladığı sahte bir sertifika sundu. Firefox bu CA’yı güvenilen listesinde bulamadığı için sertifikayı reddetti ve uyarı verdi (SEC_ERROR_UNKNOWN_ISSUER).
+
+mitmproxy’nin CA’sını Authorities listesine “web sitelerini tanımlama” güveniyle ekleyince Firefox bu CA’nın imzaladığı sertifikayı geçerli saydı, bu yüzden uyarı kalktı.
+
+Bu, bir kök CA’ya güvenmenin ne kadar güçlü olduğunu gösteriyor: tarayıcı bir CA’ya güvendiğinde, o CA’nın imzaladığı her sertifikaya güvenir. CA’nın anahtarı kötü niyetli birinin elindeyse trafik uyarısız okunabilir (DigiNotar olayında olan buydu).
+
+4.soru:
+Saldırganın iki şeye sahip olması gerekiyordu:
+
+Trafiğin yolu üzerinde olmak (proxy ayarıyla trafiği kendi üzerimizden geçirdik).
+Kurbanın tarayıcısının güvendiği bir CA (mitmproxy CA’sını Firefox’a elle ekledik).
+
+Gerçek bir bankada bu kolay değildir:
+
+Saldırgan kurbanın tarayıcısına kendi CA’sını ekletemez, bunun için cihaza erişmesi gerekir.
+Güvenilen bir CA’dan banka alan adı için sertifika alamaz, çünkü CA’lar alan adı sahipliğini doğrular.
+CAA kayıtları: Banka, DNS’te hangi CA’ların kendi adına sertifika verebileceğini belirtir.
+Sertifika Şeffaflığı: Verilen tüm sertifikalar herkese açık günlüklere kaydedilir, izinsiz bir sertifika fark edilir.
+
+Proxy ayarını kapattım ve mitmproxy CA’sını sildim
